@@ -1,0 +1,279 @@
+---
+title: "R Notebook"
+output: pdf_document
+---
+``` {r}
+library(rtweet)
+
+mytoken <- create_token(
+  app = "larri",
+  consumer_key = "lLPUVichPD2C1wTQO5J1jlvx6",
+  consumer_secret = "NYGgcf21R0MdBLAC0N0J9dlMxH0GibMcczpiWTc11zg1QniRRB",
+  access_token = "4816226435-KBbDUtCsCxkugtyLOi1Vzfp0VqYAAKJ9HU3YlqX",
+  access_secret = "5vKgKLrhZ5Apok5t3eUwwyyXhjLu96l8xrWpmDtt2BEgC")
+
+``` 
+
+tweets_stopthesteal: Collected n=1000 tweets with #stopthesteal. Saved in rda format. 8:15 PM 11/14/2020. 4,968 tweets collected. 
+
+Collecting n=10000 tweets with #stopthesteal. Saving in rda format. 1:30 PM 11/28. 4,439 tweets collected.
+``` {r}
+tweets_stopthesteal2 <- search_tweets("stopthesteal", include_retweets = TRUE, n = 10000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_stopthesteal2, file="stopthesteal2.rda")
+```
+
+Creating a network with stopthesteal2
+```{r}
+tweets <- load(file = "stopthesteal2.rda")
+
+library(devtools) 
+devtools::install_github("JohnCoene/twinetverse")
+library(graphTweets)
+library(twinetverse)
+
+extractrt <- function(tweets_stopthesteal2){
+  rt <- tweets_stopthesteal2 %>% 
+    gt_edges(screen_name, retweet_screen_name) %>% # get edges
+    gt_nodes() %>% # get nodes
+    gt_collect() # collect
+  
+  return(rt)
+}
+
+rtnet <- extractrt(tweets_stopthesteal2)
+
+extractmt <- function(tweets_stopthesteal2){
+  
+  mt <- tweets_stopthesteal2 %>% 
+    gt_edges(screen_name, mentions_screen_name) %>% # get edges
+    gt_nodes() %>% # get nodes
+    gt_collect() # collect
+  
+  return(mt)
+}
+
+mtnet <- extractmt(tweets_stopthesteal2)
+
+#define a function called nodes to extract node information from a network object
+
+nodes <- function(net){
+  
+  c(edges, nodes) %<-% net
+  nodes$id <- as.factor(nodes$nodes) 
+  nodes$size <- nodes$n 
+  nodes <- nodes2sg(nodes)
+  nodes <- nodes[,2:5]
+  
+  return(nodes)
+}
+
+#define a function called edges to extract edge information from a network object
+
+edges <- function(net){
+  
+  c(edges, nodes) %<-% net
+  edges$id <- seq(1, nrow(edges))
+  edges <- edges2sg(edges)
+  
+  return(edges)
+}
+
+#apply the two self-defined functions
+rtnet_nodes <- nodes(rtnet)
+rtnet_edges <- edges(rtnet)
+
+mtnet_nodes <- nodes(mtnet)
+mtnet_edges <- edges(mtnet)
+```
+
+``` {r}
+library(igraph)
+
+# use rtnet_edges as the edgelist and rtnet_nodes as the node list. Set the network type as directed
+
+rt <- graph_from_data_frame(d=rtnet_edges, vertices=rtnet_nodes, directed=T) 
+
+# see edge weight by copying the values from the size column in rtnet_edges
+
+rt <- set_edge_attr(rt, "weight", value= rtnet_edges$size)
+
+# we do the same for the mention network
+
+mt <- graph_from_data_frame(d=mtnet_edges, vertices=mtnet_nodes, directed=T) 
+mt <- set_edge_attr(mt, "weight", value= mtnet_edges$size)
+```
+
+```{r}
+pr <- page_rank(rt, algo = c("prpack"))
+pr <- sort(pr$vector,decreasing = TRUE)
+pr[1:10] #show the top 10 users ranked by PageRank
+```
+
+1. @xoxopatrioticrn
+2. @_m_a_c_c_a_
+3. @culttture
+4. @milionmagamarch
+5. @thecjpearson
+6. @usalovegod
+7. @tom_trotts
+8. @kyliejanekremer
+9. @sebgorka
+10. @tdie2020
+
+```{r}
+library(igraph)
+library(visNetwork)
+library(scales)
+
+pr <- page_rank(rt, algo = c("prpack"))
+V(rt)$size <- pr$vector*1000 #set node size by PageRank scores.
+
+wc <- cluster_walktrap(rt)
+V(rt)$color <- membership(wc)
+
+kcore <- coreness(rt, mode="all") 
+twocore <- induced_subgraph(rt, kcore>=2)
+
+visIgraph(twocore,idToLabel = TRUE,layout = "layout_nicely") %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) 
+
+
+```
+
+converting rda to csv
+```{r}
+library(rio)
+install_formats()
+
+convert("stopthesteal.rda", "stopthesteal.csv")
+convert("stopthesteal2.rda", "stopthesteal2.csv")
+```
+
+combining the stopthesteal files into one
+```{r}
+sts1 <- read.csv("stopthesteal.csv")
+sts2 <- read.csv("stopthesteal2.csv")
+
+sts <- rbind(sts1, sts2)
+write.csv(sts, "sts.csv")
+```
+
+running network analysis for combined file
+```{r}
+tweets <- read.csv("sts.csv")
+
+library(devtools) 
+devtools::install_github("JohnCoene/twinetverse")
+library(graphTweets)
+library(twinetverse)
+
+extractrt <- function(tweets){
+  rt <- tweets %>% 
+    gt_edges(screen_name, retweet_screen_name) %>% # get edges
+    gt_nodes() %>% # get nodes
+    gt_collect() # collect
+  
+  return(rt)
+}
+
+rtnet <- extractrt(tweets)
+
+extractmt <- function(tweets){
+  
+  mt <- tweets %>% 
+    gt_edges(screen_name, mentions_screen_name) %>% # get edges
+    gt_nodes() %>% # get nodes
+    gt_collect() # collect
+  
+  return(mt)
+}
+
+mtnet <- extractmt(tweets)
+
+#define a function called nodes to extract node information from a network object
+
+nodes <- function(net){
+  
+  c(edges, nodes) %<-% net
+  nodes$id <- as.factor(nodes$nodes) 
+  nodes$size <- nodes$n 
+  nodes <- nodes2sg(nodes)
+  nodes <- nodes[,2:5]
+  
+  return(nodes)
+}
+
+#define a function called edges to extract edge information from a network object
+
+edges <- function(net){
+  
+  c(edges, nodes) %<-% net
+  edges$id <- seq(1, nrow(edges))
+  edges <- edges2sg(edges)
+  
+  return(edges)
+}
+
+#apply the two self-defined functions
+rtnet_nodes <- nodes(rtnet)
+rtnet_edges <- edges(rtnet)
+
+mtnet_nodes <- nodes(mtnet)
+mtnet_edges <- edges(mtnet)
+```
+
+``` {r}
+library(igraph)
+
+# use rtnet_edges as the edgelist and rtnet_nodes as the node list. Set the network type as directed
+
+rt <- graph_from_data_frame(d=rtnet_edges, vertices=rtnet_nodes, directed=T) 
+
+# see edge weight by copying the values from the size column in rtnet_edges
+
+rt <- set_edge_attr(rt, "weight", value= rtnet_edges$size)
+
+# we do the same for the mention network
+
+mt <- graph_from_data_frame(d=mtnet_edges, vertices=mtnet_nodes, directed=T) 
+mt <- set_edge_attr(mt, "weight", value= mtnet_edges$size)
+```
+
+```{r}
+pr <- page_rank(rt, algo = c("prpack"))
+pr <- sort(pr$vector,decreasing = TRUE)
+pr[1:11] #show the top 10 users ranked by PageRank
+```
+
+2. @networksmanager
+3. @mintchipmusic
+4. @culttture
+5. @thecjpearson
+6. @millionmagamarch
+7. @kittylists
+8. @kyliejanekremer
+9. @allenwest
+10. @_m_a_c_c_a
+
+```{r}
+library(igraph)
+library(visNetwork)
+library(scales)
+
+pr <- page_rank(rt, algo = c("prpack"))
+V(rt)$size <- pr$vector*1000 #set node size by PageRank scores.
+
+wc <- cluster_walktrap(rt)
+V(rt)$color <- membership(wc)
+
+kcore <- coreness(rt, mode="all") 
+twocore <- induced_subgraph(rt, kcore>=2)
+
+visIgraph(twocore,idToLabel = TRUE,layout = "layout_nicely") %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) 
+
+```
+
+
+
