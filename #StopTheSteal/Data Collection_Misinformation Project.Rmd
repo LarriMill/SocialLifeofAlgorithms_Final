@@ -1,0 +1,388 @@
+---
+title: "Data Collection_Misinformation Project"
+author: "Larri Miller"
+date: "11/9/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+My personal Twitter dev account (!!!)
+``` {r}
+library(rtweet)
+
+mytoken <- create_token(
+  app = "larri",
+  consumer_key = "lLPUVichPD2C1wTQO5J1jlvx6",
+  consumer_secret = "NYGgcf21R0MdBLAC0N0J9dlMxH0GibMcczpiWTc11zg1QniRRB",
+  access_token = "4816226435-KBbDUtCsCxkugtyLOi1Vzfp0VqYAAKJ9HU3YlqX",
+  access_secret = "5vKgKLrhZ5Apok5t3eUwwyyXhjLu96l8xrWpmDtt2BEgC")
+
+``` 
+
+Collecting n=1000 tweets with #WWG1WGA. Saving in rda format
+``` {r}
+tweets_WWG1WGA <- search_tweets("WWG1WGA", include_retweets = TRUE, n = 1000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_WWG1WGA, file="tweets_WWG1WGA.rda")
+```
+
+
+Collecting n=1000 tweets with #QAnon. Saving in rda format
+``` {r}
+tweets_QAnon <- search_tweets("QAnon", include_retweets = TRUE, n = 1000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_QAnon, file="tweets_QAnon.rda")
+```
+
+Collecting n=1000 tweets with #fakenews. Saving in rda format
+``` {r}
+tweets_fakenews <- search_tweets("fakenews", include_retweets = TRUE, n = 1000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_fakenews, file="fakenews.rda")
+```
+
+Collecting n=1000 tweets with #stopthesteal. Saving in rda format. 8:15 PM 11/14/2020. 4,968 tweets collected.
+``` {r}
+tweets_stopthesteal <- search_tweets("stopthesteal", include_retweets = TRUE, n = 1000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_stopthesteal, file="stopthesteal.rda")
+```
+
+Collecting n=1000 tweets with #sharpiegate. Saving in rda format. 1:45 PM 11/17/2020. 12,270 tweets collected.
+``` {r}
+tweets_sharpie <- search_tweets("sharpiegate", include_retweets = TRUE, n = 1000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_sharpie, file="tweets_sharpie.rda")
+```
+
+Collecting n=1000 tweets with #millionmagamarch. Saving in rda format. 1:45 PM 11/17/2020. 2757 tweets collected.
+``` {r}
+tweets_march <- search_tweets("millionmagamarch", include_retweets = TRUE, n = 1000, retryonratelimit = TRUE,  token = mytoken)
+
+save(tweets_march, file="tweets_march.rda")
+```
+
+# Trying network analysis with #stopthesteal collected ~ 8:15 PM 11/14/2020
+
+Creating a network
+```{r}
+tweets <- load(file = "stopthesteal.rda")
+
+library(devtools) 
+devtools::install_github("JohnCoene/twinetverse")
+library(graphTweets)
+library(twinetverse)
+
+extractrt <- function(tweets_stopthesteal){
+  rt <- tweets_stopthesteal %>% 
+    gt_edges(screen_name, retweet_screen_name) %>% # get edges
+    gt_nodes() %>% # get nodes
+    gt_collect() # collect
+  
+  return(rt)
+}
+
+rtnet <- extractrt(tweets_stopthesteal)
+
+extractmt <- function(tweets_stopthesteal){
+  
+  mt <- tweets_stopthesteal %>% 
+    gt_edges(screen_name, mentions_screen_name) %>% # get edges
+    gt_nodes() %>% # get nodes
+    gt_collect() # collect
+  
+  return(mt)
+}
+
+mtnet <- extractmt(tweets_stopthesteal)
+
+#define a function called nodes to extract node information from a network object
+
+nodes <- function(net){
+  
+  c(edges, nodes) %<-% net
+  nodes$id <- as.factor(nodes$nodes) 
+  nodes$size <- nodes$n 
+  nodes <- nodes2sg(nodes)
+  nodes <- nodes[,2:5]
+  
+  return(nodes)
+}
+
+#define a function called edges to extract edge information from a network object
+
+edges <- function(net){
+  
+  c(edges, nodes) %<-% net
+  edges$id <- seq(1, nrow(edges))
+  edges <- edges2sg(edges)
+  
+  return(edges)
+}
+
+#apply the two self-defined functions
+rtnet_nodes <- nodes(rtnet)
+rtnet_edges <- edges(rtnet)
+
+mtnet_nodes <- nodes(mtnet)
+mtnet_edges <- edges(mtnet)
+```
+
+Converting to igraph
+``` {r}
+library(igraph)
+
+# use rtnet_edges as the edgelist and rtnet_nodes as the node list. Set the network type as directed
+
+rt <- graph_from_data_frame(d=rtnet_edges, vertices=rtnet_nodes, directed=T) 
+
+# see edge weight by copying the values from the size column in rtnet_edges
+
+rt <- set_edge_attr(rt, "weight", value= rtnet_edges$size)
+
+# we do the same for the mention network
+
+mt <- graph_from_data_frame(d=mtnet_edges, vertices=mtnet_nodes, directed=T) 
+mt <- set_edge_attr(mt, "weight", value= mtnet_edges$size)
+```
+
+looking for users that are retweeted most
+```{r}
+indegree_rt <- sort(degree(rt,mode = "in"),decreasing = TRUE)
+indegree_rt[1:10] #show the top 10 users ranked by in-degree
+```
+Top ten shared users are 
+1. @networksmanager: Bruce Porter, Jr. Not verified. Bio states "American investor, athlete, globetrotter in #Washington #DC. @EmmeGirls COO @GlobalBoost CEO. Founder @WashingtonElite #AI #Blockchain Summit+Charitable Events." Location Washington, DC. Links to https://t.me/WashingtonElite.Joined Feb 2010. 103.2k following, 103.6k followers. Active in the #MillionMagaMarch, posts videos of it w/ commentary. Appears white, female.
+
+2. @kittylists: Kitty Shackleford. Not verified. Bio states "Viti Nation Armor of God". No location. Joined March 2018. 1,983 following, 35.7k followers. Retweets a lot of videos mocking antifa. Ethnicity/gender unknown.
+
+3. @allenwest: Allen West. Verified. Bio states "Chairman of the Republican Party of Texas, former FL Rep, retired Army Lt. Col., author: Hold Texas, Hold the Nation Amazon: http://amzn.to/2nS93W4." Location Garland, TX. Links to personal website, https://allenwesttx.com/. Joined Jan 2011. 1,032 following, 827.5k followers. Promoted an organized "stop the steal" event in TX. Appears Black, male.
+
+4. @kelliwardaz: Dr. Kelli Ward (american flag emoji). Verified. Bio states "Chairwoman 
+@AZGOP, mom, military wife, family physician, & former AZ State Senator #Win2020 #KeepAmericaGreat #ProLife #ProFamily #ProFreedom (american flag emoji)". Location Phoenix, AZ. Links to personal website, https://kelliward.com/. Joined August 2011. 2,336 following, 87.5k followers. Participates in anti antifa and "drain the swamp" rhetoric. Appears white, female.
+
+5. @detroit_andie: Andie. Not verified. Bio states "I like my (steak emoji) rare, my (whisky glass emoji) strong, my man masculine, and my (american flag emoji) FREE!! Feisty AF. #normalizebreastfeeding #1A2A #WWG1WGA". Location Detroit. Links to parler profile https://parler.com/profile/Detroitandie/posts. Joined Jan 2012. 255 following, 107 followers. Shares a lot of anti media (MSM) content. Appears white, female.
+
+6. @rickyrebelrocks: Ricky Rebel. Verified. Bio states "• Billboard Top 40 Recording Artist. As seen on tour with 
+@BritneySpears. Booking Inquiries: info@pennyflyent.com | Press Inquiries: themichaelgarbutt@gmail.com" Location Los Angeles, CA. Links to personal website, https://www.rickyrebelrocks.com/. Joined Dec 2009. 13.1k following, 77.4k followers. Posts a lot of MAGA, KAG, MillionMagaMarch content. Appears white, male.
+
+7. @debostic: Daniel Bostic #StopTheSteal. Verified. Bio states "Working #StopTheSteal • Associate Producer of The Plot Against the President • Former Congressional Staffer • Has-Been Model • Lead @Culttture •". Location Charleston, SC. Links to personal paypal, https://www.paypal.com/paypalme/debostic. Joined Jan 2009. 1,488 following, 53.1k followers. Frequently posts "walk away" "stop the steal" "defend democracy" rhetoric. Appears white, male.
+
+8. @womenfortrump: Women for Trump. Verified. Bio states "Official home 4 women who support @realDonaldTrump
+ & #MAGA agenda Voice 4 smart, independent women. #AmericaFirst #womenfortrump #women4trump #STOPTHESTEAL". Location United States. Links to https://stolenelection.us/. Joined April 2016. 8,539 following, 76.2k followers. posted a lot of content pertaining to the "march for trump" and featured people that joined the march (Marjorie taylor greene, founder of students for trump, my pillow guy, and more). 
+ 
+9. @cooperchip1: GoldenRule1. Not verified. Bio states "Mueller: “If we had confidence that the President clearly did not commit obstruction of justice, we would so state. We are unable to reach that judgement.”". Location America. Joined May 2015. 28.8k following, 26.7k followers. This account is clearly anti-trump. #stopthesteal content is based on CNN article "Stop the Steal's massive disinformation campaign connected to Roger Stone" by Rob Kuznia, Curt Devine, Nelli Black, and Drew Griffin, published Nov 14, 2020. https://www.cnn.com/2020/11/13/business/stop-the-steal-disinformation-campaign-invs/index.html. Unclear gender, ethnicity, or if this is an individual?
+
+10. @culttture: Culttture. Not verified. No bio. No location. Links to https://stopthesteal.us/. Joined June 2018.146 following, 31.9k followers. Primarily posting content from March for Trump, @Ali (sites founder, Ali Alexander, "National Organizer of peaceful Stop the Steal 2020 protests").  
+
+
+
+looking for users that retweet the most
+```{r}
+outdegree_rt <- sort(degree(rt,mode = "out"),decreasing = TRUE)
+outdegree_rt[1:10] #show the top 10 users ranked by out-degree
+```
+Top 10 sharers are 
+1. @errico_e: Emanuel D. Errico. Bio links to facebook profile. Location STFB Inc.  Links to http://stfb.com/. Joined March 2012. 57 following, 35 followers. 3.6/5 botometer (orange).
+
+2. @celiastet: TRUMP/KAG!!!. Bio states "(american flag emoji * 3)Keep America Great!!!(american flag emoji * 3)". joined Feb 2016. 1,129 following, 1,169 followers. 1.5/5 botometer (green).
+
+3. @chandelier_c: (love you gesture emoji)(Peru flag) Aristortilla (bread emoji)(bee emoji). Bio states (Love-you gesture emoji)(peru flag emoji) Miembro de @EmilioOsorioPE (gloves/clapping emoji) COBERTURA (Woman dancing emoji). Joined March 2015. 496 following, 373 followers. 1.3/5 botometer (green)
+
+4. @lacosanostramex: The Mafia Government. Bio states "Mienten Prensa, Radio y TV, por dinero, poder y privilegios, o por facciosos, no existe democracia, ni Estado de Derecho, México impone candidatos por dedazo." (in english: The Press, Radio and TV lie, for money, power and privileges, or for factious, there is no democracy, nor the rule of law, Mexico imposes candidates by finger.) Location Global. Links to youtube video https://www.youtube.com/watch?v=3B5Din0tIXc&feature=youtu.be. Joined Sept 2015. 0 following, 328 followers. 2.3/5 botometer (yellow)
+
+5. @cinrtmqamgvhp3g: bio and profile name all in Persian. English translation of bio is "If I do not touch you, I will mourn your mother Jack (angry face emoji)(middle finger emoji)." joined Nov 2020, 200 following, 84 followers. 3.4/5 botometer (orange).
+
+6. @daosunshine: Danielle. no bio. joined Nov 2009. 1,202 following, 207 followers. 0.8/5 botometer (blue).
+
+7. @lseimsa: Reverend Tom Diamond AOL. Bio states "Otome is a peaceful,friendly,warm,passionate and compassionate individual that loves people and desire the best for others." Location South Africa. Links to http://www.livingspringsint.co.za/, which can't be reached. Joined Oct 2010. 1,101 following, 49 followers. 1.7/5 botometer (green)
+
+8. @plasmalamp: plasmalamp, bio states "lazy bio writer". Location South Africa. Joined Dec 2011. 2,541 following, 288 followers. 1/5 botometer (green/blue)
+
+9. @srt72054253: Name appears to be in Persian or Arabic. Bio states "#restart". No location. Joined Nov 2020. 482 following, 190 followers. 4.1/5 botometer. (orange/red)
+
+10. @zerowield: President-Elect Zerowield. Bio states "Pro-Free Speech, Anti-War, Pro-Human, Anti-Globalist". Location Ireland. Joined Dec 2018. 345 following, 815 followers. 1.1/5 botometer (green/blue)
+
+I ran my own profile (@larri_mill) through botometer to check. It rated me 0.1/5, correctly identifying my profile as human rather than bot.
+
+
+Now I'm looking to see who acts as bridges in the network-- who influences the information flow, shares content that gets further pushed.
+```{r}
+bt <- sort(betweenness(rt, directed=T, weights=NA), decreasing = TRUE)
+bt[1:10] #show the top 10 nodes by betweenness centrality 
+```
+1. @debostic (above)
+2. @kittylists (above)
+3. @culttture (above)
+4. @allenwest (above)
+
+5. @taylorrmarshall: Dr. Taylor Marshall (praying emoji)(american flag emoji). Not verified. Bio states "Father of 8. Husband of 1. YouTuber. Philosophy Prof Author of 8 books including bestseller: #INFILTRATION (link at http://amzn.to/2ZLvLnm)." Location Texas, USA. links to personal website, https://taylormarshall.com/. Jonied Jan 2009. 241 following, 77.8k followers. Appears white, male.
+
+6. @texasgop: Texas GOP. Verified. Bio states "Official Twitter account for the Republican Party of Texas." Location Austin TX. links to https://www.texasgop.org/. Born July 4. Joined May 2009. 4,367 following, 55.3k followers.
+
+7. @thecjpearson: CJ Pearson. Verified. Bio states "President, 
+@FreeThinkerProj | Host, CJ Pearson UNCENSORED | The University of Alabama | Contact: cj@cjpearson.org". Location Tuscaloosa, AL. Links to https://freethinkerproject.org/. Joined March 2014. 782 following, 380.3k followers.
+
+8. @tan123: President-elect Tom Nelson. Bio states "Fun fact: I personally have twice as many climatology degrees as Biden, Harris, Obama, Gore, Revkin, Ruffalo, DiCaprio, Greta, and Gavin Schmidt combined!" links to personal blog, https://tomnelson.blogspot.com/2019/06/useful-notes-for-climate-skeptics.html. Joined Dec 2008. 1,454 following, 31.9k followers. 
+
+9. @sickoftheswamp: President Elect Sandy #SickoftheSwamp. Bio states "#2A #AmericaFirst #Trump #ConstitutionalConservative  Find me on Parler, same name." Joined Oct 2016. 65.3k following, 62k followers.
+
+10. @institut_inrer: INRER. Bio states "Institut de recherches et d'études sur les radicalités politiques, religieuses et sociétales #RadicalitésFondatrice et présidente : @KersimonIsa" (in English: Institute for research and studies on political, religious and societal radicalities #Radicalités). Location France. Links to https://inrer.org/. Joined Jan 2016. 279 following, 1,027 followers. It appears (based on google translate) that this is a French organization that studies radicalization and is not in support of Trump.
+
+trying pageRank algorithm by google
+```{r}
+pr <- page_rank(rt, algo = c("prpack"))
+pr <- sort(pr$vector,decreasing = TRUE)
+pr[1:15] #show the top 10 users ranked by PageRank
+```
+1. @networksmanager
+2. @texasgop
+3. @kittylists
+4. @debostic
+5. @mintchipmusic
+6. @coooperchip1
+7. @kelliwardaz
+8. @allenwest
+9. @timotheeology
+10. @rawsmedia
+
+
+creating k-core -- identifies a small subset of users who are the most interconnected. each node has at least k connections with everyone else.
+```{r}
+kcore <- coreness(rt, mode="all") 
+twocore <- induced_subgraph(rt, kcore>=2)
+```
+
+
+Visualize network!  PageRank score for node size, cluster id for assigning color.
+```{r}
+library(igraph)
+library(visNetwork)
+library(scales)
+
+pr <- page_rank(rt, algo = c("prpack"))
+V(rt)$size <- pr$vector*1000 #set node size by PageRank scores.
+
+wc <- cluster_walktrap(rt)
+V(rt)$color <- membership(wc)
+
+kcore <- coreness(rt, mode="all") 
+twocore <- induced_subgraph(rt, kcore>=2)
+
+visIgraph(twocore,idToLabel = TRUE,layout = "layout_nicely") %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) 
+
+
+```
+
+
+
+
+# Trying topic modelling with #stopthesteal
+
+libraries
+``` {r}
+library(tm)
+library(topicmodels)
+library(LDAvis)
+library(servr)
+library(dplyr)
+library(stringi) 
+```
+
+aggregate function
+```{r}
+tweets_byusers <- aggregate(x = tweets_stopthesteal$text, by = list(tweets_stopthesteal$screen_name), paste, collapse=". ")
+
+colnames(tweets_byusers) <- c("screen_name", "text")
+```
+
+convert text to corpus
+```{r}
+tweets_byusers_corpus <- iconv(tweets_byusers$text)
+corpus <- Corpus(VectorSource(tweets_byusers_corpus))
+```
+
+text cleaning
+```{r}
+corpus <- tm_map(corpus, content_transformer(tolower)) 
+corpus <- tm_map(corpus, removePunctuation) 
+corpus <- tm_map(corpus, removeWords, stopwords("english")) 
+corpus <- tm_map(corpus, removeWords,c("stopthesteal")) 
+corpus <- tm_map(corpus, removeNumbers) 
+corpus <- tm_map(corpus, removeSparseTerms) 
+corpus <- tm_map(corpus, stripWhitespace) 
+```
+
+document-term matrix (DTM)
+``` {r}
+dtm <- DocumentTermMatrix(corpus)  
+
+rowTotals<-apply(dtm,1,sum) #running this line takes time
+empty.rows<-dtm[rowTotals==0,]$dimnames[1][[1]] 
+corpus<-corpus[-as.numeric(empty.rows)]
+dtm <- DocumentTermMatrix(corpus) 
+```
+
+looking at first 5 rows/columns of the DTM
+```{r}
+inspect(dtm[1:5, 1:5])  
+```
+
+25 most frequent terms
+```{r}
+dtm.mx <- as.matrix(dtm)
+frequency <- colSums(dtm.mx)
+frequency <- sort(frequency, decreasing=TRUE)
+frequency[1:25] 
+```
+
+topic model initial parameters
+```{r}
+burnin <- 4000
+iter <- 2000
+thin <- 500
+seed <-list(2003,5,63,100001,765)
+nstart <- 5
+best <- TRUE
+```
+
+specify number of topics - trying 5
+```{r}
+k <- 5 #find 5 topics
+ldaOut <-LDA(dtm,k, method="Gibbs", control=list(nstart=nstart, seed = seed, best=best, burnin = burnin, iter = iter, thin=thin))
+```
+
+creating csv 
+```{r}
+ldaOut.topics <- as.matrix(topics(ldaOut))
+write.csv(ldaOut.topics,file=paste("topic_model",k,"DocsToTopics.csv"))
+```
+
+looking at topic keywords
+```{r}
+ldaOut.terms <- as.matrix(terms(ldaOut,6))
+write.csv(ldaOut.terms,file=paste("topic_model",k,"TopicsToTerms.csv"))
+ldaOut.terms[1:6,]
+```
+
+visualize topic keywords
+```{r}
+topicmodels2LDAvis <- function(x, ...){
+  post <- topicmodels::posterior(x)
+  if (ncol(post[["topics"]]) < 3) stop("The model must contain > 2 topics")
+  mat <- x@wordassignments
+  LDAvis::createJSON(
+    phi = post[["terms"]], 
+    theta = post[["topics"]],
+    vocab = colnames(post[["terms"]]),
+    doc.length = slam::row_sums(mat, na.rm = TRUE),
+    term.frequency = slam::col_sums(mat, na.rm = TRUE)
+  )
+}
+
+serVis(topicmodels2LDAvis(ldaOut))
+```
