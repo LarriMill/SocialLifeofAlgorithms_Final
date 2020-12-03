@@ -1,5 +1,5 @@
 # Fall 2020 Final Projects
-This repository contains work for my final projects of the Fall 2020 semester in the Data Analytics & Computational Social Science M.S. program @ UMass Amherst. 
+This repository contains work for some of my final projects of the Fall 2020 semester in the Data Analytics & Computational Social Science M.S. program @ UMass Amherst. 
 
 Project 1: "SharpieGate 2020." See the final result at https://larri-miller.shinyapps.io/SharpieGate_2020/
 
