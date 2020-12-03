@@ -11,11 +11,11 @@ Twitter Data Collection using the developer account for my personal twitter, @la
 library(rtweet)
 
 mytoken <- create_token(
-  app = "larri",
-  consumer_key = "lLPUVichPD2C1wTQO5J1jlvx6",
-  consumer_secret = "NYGgcf21R0MdBLAC0N0J9dlMxH0GibMcczpiWTc11zg1QniRRB",
-  access_token = "4816226435-KBbDUtCsCxkugtyLOi1Vzfp0VqYAAKJ9HU3YlqX",
-  access_secret = "5vKgKLrhZ5Apok5t3eUwwyyXhjLu96l8xrWpmDtt2BEgC")
+  app = "",
+  consumer_key = "",
+  consumer_secret = "",
+  access_token = "",
+  access_secret = "")
 
 ``` 
 
