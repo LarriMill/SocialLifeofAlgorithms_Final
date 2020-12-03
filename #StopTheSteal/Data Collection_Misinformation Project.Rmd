@@ -9,16 +9,16 @@ output: word_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-My personal Twitter dev account (!!!)
+personal twitter dev account
 ``` {r}
 library(rtweet)
 
 mytoken <- create_token(
-  app = "larri",
-  consumer_key = "lLPUVichPD2C1wTQO5J1jlvx6",
-  consumer_secret = "NYGgcf21R0MdBLAC0N0J9dlMxH0GibMcczpiWTc11zg1QniRRB",
-  access_token = "4816226435-KBbDUtCsCxkugtyLOi1Vzfp0VqYAAKJ9HU3YlqX",
-  access_secret = "5vKgKLrhZ5Apok5t3eUwwyyXhjLu96l8xrWpmDtt2BEgC")
+  app = "",
+  consumer_key = "",
+  consumer_secret = "",
+  access_token = "",
+  access_secret = "")
 
 ``` 
 
@@ -276,113 +276,4 @@ visIgraph(twocore,idToLabel = TRUE,layout = "layout_nicely") %>%
   visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) 
 
 
-```
-
-
-
-
-# Trying topic modelling with #stopthesteal
-
-libraries
-``` {r}
-library(tm)
-library(topicmodels)
-library(LDAvis)
-library(servr)
-library(dplyr)
-library(stringi) 
-```
-
-aggregate function
-```{r}
-tweets_byusers <- aggregate(x = tweets_stopthesteal$text, by = list(tweets_stopthesteal$screen_name), paste, collapse=". ")
-
-colnames(tweets_byusers) <- c("screen_name", "text")
-```
-
-convert text to corpus
-```{r}
-tweets_byusers_corpus <- iconv(tweets_byusers$text)
-corpus <- Corpus(VectorSource(tweets_byusers_corpus))
-```
-
-text cleaning
-```{r}
-corpus <- tm_map(corpus, content_transformer(tolower)) 
-corpus <- tm_map(corpus, removePunctuation) 
-corpus <- tm_map(corpus, removeWords, stopwords("english")) 
-corpus <- tm_map(corpus, removeWords,c("stopthesteal")) 
-corpus <- tm_map(corpus, removeNumbers) 
-corpus <- tm_map(corpus, removeSparseTerms) 
-corpus <- tm_map(corpus, stripWhitespace) 
-```
-
-document-term matrix (DTM)
-``` {r}
-dtm <- DocumentTermMatrix(corpus)  
-
-rowTotals<-apply(dtm,1,sum) #running this line takes time
-empty.rows<-dtm[rowTotals==0,]$dimnames[1][[1]] 
-corpus<-corpus[-as.numeric(empty.rows)]
-dtm <- DocumentTermMatrix(corpus) 
-```
-
-looking at first 5 rows/columns of the DTM
-```{r}
-inspect(dtm[1:5, 1:5])  
-```
-
-25 most frequent terms
-```{r}
-dtm.mx <- as.matrix(dtm)
-frequency <- colSums(dtm.mx)
-frequency <- sort(frequency, decreasing=TRUE)
-frequency[1:25] 
-```
-
-topic model initial parameters
-```{r}
-burnin <- 4000
-iter <- 2000
-thin <- 500
-seed <-list(2003,5,63,100001,765)
-nstart <- 5
-best <- TRUE
-```
-
-specify number of topics - trying 5
-```{r}
-k <- 5 #find 5 topics
-ldaOut <-LDA(dtm,k, method="Gibbs", control=list(nstart=nstart, seed = seed, best=best, burnin = burnin, iter = iter, thin=thin))
-```
-
-creating csv 
-```{r}
-ldaOut.topics <- as.matrix(topics(ldaOut))
-write.csv(ldaOut.topics,file=paste("topic_model",k,"DocsToTopics.csv"))
-```
-
-looking at topic keywords
-```{r}
-ldaOut.terms <- as.matrix(terms(ldaOut,6))
-write.csv(ldaOut.terms,file=paste("topic_model",k,"TopicsToTerms.csv"))
-ldaOut.terms[1:6,]
-```
-
-visualize topic keywords
-```{r}
-topicmodels2LDAvis <- function(x, ...){
-  post <- topicmodels::posterior(x)
-  if (ncol(post[["topics"]]) < 3) stop("The model must contain > 2 topics")
-  mat <- x@wordassignments
-  LDAvis::createJSON(
-    phi = post[["terms"]], 
-    theta = post[["topics"]],
-    vocab = colnames(post[["terms"]]),
-    doc.length = slam::row_sums(mat, na.rm = TRUE),
-    term.frequency = slam::col_sums(mat, na.rm = TRUE)
-  )
-}
-
-serVis(topicmodels2LDAvis(ldaOut))
 ```
