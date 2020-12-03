@@ -2,5 +2,5 @@ This is my final project for DACCS 697DBD, Digital Behavioral Data. I collected 
 
 The scripts I used are based on work provided by Dr. Xu. The workflow script is used to collect tweets, and the app script is used to build the shinyapp. The final product can be found at https://larri-miller.shinyapps.io/SharpieGate_2020/ :)
 
-The code used for my 695SR project is found in the appendix file.
+The code used for my 695SR project is found in the appendix file.rmd file. Note that I have removed my Twitter developer information from these files.
 
